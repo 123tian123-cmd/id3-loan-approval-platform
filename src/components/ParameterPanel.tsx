@@ -29,7 +29,7 @@ const PARAM_META: Array<{
     min: 0,
     max: 5,
     step: 1,
-    range: '约 800 条样本推荐 3–5',
+    range: '推荐 4–5',
     icon: Layers3,
     tip: '当前模型包含 5 个候选特征，深度超过 5 不会产生额外有效划分。',
   },
@@ -38,20 +38,20 @@ const PARAM_META: Array<{
     name: '限制叶子最小样本数',
     subtitle: '叶子节点最少容纳样本',
     min: 0,
-    max: 200,
+    max: 300,
     step: 1,
-    range: '约 800 条样本推荐 10–40',
+    range: '推荐 20–75',
     icon: Leaf,
-    tip: '数值越大，树结构越简单；该区间约占总样本量的 1.25%–5%。',
+    tip: '数值越大，树结构越简单；建议结合少数类别规模避免生成不稳定叶子。',
   },
   {
     key: 'minSplitSamples',
     name: '限制分裂最小样本数',
     subtitle: '中间节点继续分裂的门槛',
     min: 0,
-    max: 400,
+    max: 600,
     step: 1,
-    range: '约 800 条样本推荐 30–100',
+    range: '推荐 60–180',
     icon: SplitSquareVertical,
     tip: '节点样本数低于该值就停止分裂，可减少小样本造成的不稳定规则。',
   },
@@ -62,7 +62,7 @@ const PARAM_META: Array<{
     min: 0,
     max: 1,
     step: 0.001,
-    range: '约 800 条样本推荐 0.005–0.05',
+    range: '推荐 0.005–0.05',
     icon: Gauge,
     tip: '候选特征增益低于阈值时停止分裂；提高阈值会使树更浅、更保守。',
   },
@@ -71,10 +71,10 @@ const PARAM_META: Array<{
 function structureSummary(values: TreeConstraints) {
   const strength =
     (values.maxDepth <= 3 ? 2 : values.maxDepth <= 4 ? 1 : 0) +
-    (values.minLeafSamples >= 40 ? 2 : values.minLeafSamples >= 15 ? 1 : 0) +
-    (values.minSplitSamples >= 100
+    (values.minLeafSamples >= 75 ? 2 : values.minLeafSamples >= 30 ? 1 : 0) +
+    (values.minSplitSamples >= 180
       ? 2
-      : values.minSplitSamples >= 40
+      : values.minSplitSamples >= 75
         ? 1
         : 0) +
     (values.minGain >= 0.05 ? 2 : values.minGain >= 0.01 ? 1 : 0)

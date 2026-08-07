@@ -1,5 +1,6 @@
 import {
   Calculator,
+  Check,
   CheckCircle2,
   ChevronRight,
   ClipboardCheck,
@@ -21,7 +22,7 @@ import type {
   TreeNode,
 } from '../types'
 import { TreeCanvas } from './TreeCanvas'
-import { Button, EmptyState, Section, TeachingTip } from './ui'
+import { Button, EmptyState, Modal, Section, TeachingTip } from './ui'
 
 interface CaseDecision {
   label: ApprovalLabel
@@ -37,6 +38,76 @@ const CASE_NUMERIC_FEATURES: DirectNumericFeature[] = [
   'age',
   'income',
   'stability',
+]
+
+type StabilityFactorKey =
+  | 'employer'
+  | 'tenure'
+  | 'benefits'
+  | 'contract'
+  | 'location'
+
+type StabilitySelections = Record<StabilityFactorKey, number | null>
+
+const EMPTY_STABILITY_SELECTIONS: StabilitySelections = {
+  employer: null,
+  tenure: null,
+  benefits: null,
+  contract: null,
+  location: null,
+}
+
+const STABILITY_SCORE_GROUPS: Array<{
+  key: StabilityFactorKey
+  title: string
+  options: Array<{ label: string; score: number }>
+}> = [
+  {
+    key: 'employer',
+    title: '1. 就职单位类型',
+    options: [
+      { label: '国企、事业单位、编制内', score: 30 },
+      { label: '大型上市企业、头部正规私企', score: 20 },
+      { label: '中小型普通私企', score: 10 },
+      { label: '自由职业', score: 0 },
+    ],
+  },
+  {
+    key: 'tenure',
+    title: '2. 当前岗位连续在职时长',
+    options: [
+      { label: '在职≥3年', score: 25 },
+      { label: '1年≤在职＜3年', score: 15 },
+      { label: '6个月≤在职＜1年', score: 8 },
+      { label: '在职＜6个月、待业', score: 0 },
+    ],
+  },
+  {
+    key: 'benefits',
+    title: '3. 社保公积金缴纳状态',
+    options: [
+      { label: '连续足额缴纳社保公积金≥2年', score: 20 },
+      { label: '断续缴纳社保', score: 10 },
+      { label: '未缴纳社保', score: 0 },
+    ],
+  },
+  {
+    key: 'contract',
+    title: '4. 劳动合同性质',
+    options: [
+      { label: '长期固定劳动合同', score: 15 },
+      { label: '1～3年期固定合同', score: 10 },
+      { label: '短期劳务合同、无正式合同', score: 0 },
+    ],
+  },
+  {
+    key: 'location',
+    title: '5. 地域从业稳定性加成',
+    options: [
+      { label: '一二线固定驻地工作', score: 10 },
+      { label: '频繁异地外派、流动务工', score: 0 },
+    ],
+  },
 ]
 
 function attachFallbackBranch(
@@ -136,6 +207,10 @@ export function CasePanel({
   const [debtAmount, setDebtAmount] = useState('3400')
   const [decision, setDecision] = useState<CaseDecision | null>(null)
   const [showPath, setShowPath] = useState(false)
+  const [showStabilityCalculator, setShowStabilityCalculator] =
+    useState(false)
+  const [stabilitySelections, setStabilitySelections] =
+    useState<StabilitySelections>(EMPTY_STABILITY_SELECTIONS)
   const decisionTree = useMemo(() => {
     if (!tree || !decision?.fallback) return tree
     return attachFallbackBranch(tree, decision.fallback)
@@ -180,6 +255,38 @@ export function CasePanel({
         'error',
       )
     }
+  }
+
+  const selectedStabilityFactorCount = Object.values(
+    stabilitySelections,
+  ).filter((score) => score !== null).length
+
+  const applyStabilityScore = () => {
+    const scores = Object.values(stabilitySelections)
+    if (scores.some((score) => score === null)) {
+      onNotice('请为工作稳定度的五类指标各选择一项', 'error')
+      return
+    }
+
+    const total = scores.reduce<number>(
+      (sum, score) => sum + (score ?? 0),
+      0,
+    )
+    const mapped = mapValue(total, 'stability', mappings, true)
+    setNumericValues((current) => ({
+      ...current,
+      stability: String(total),
+    }))
+    if (mapped) {
+      setSample((current) => ({
+        ...current,
+        stability: mapped.label,
+      }))
+    }
+    setDecision(null)
+    setShowPath(false)
+    setShowStabilityCalculator(false)
+    onNotice(`工作稳定度已计算并填入：${total} 分`, 'success')
   }
 
   const evaluate = (revealPath: boolean) => {
@@ -261,11 +368,26 @@ export function CasePanel({
                 <label htmlFor={`case-${feature}`}>
                   {FEATURE_META[feature].name}
                 </label>
-                <TeachingTip title={`${FEATURE_META[feature].name}数字录入`}>
-                  输入原始数字后自动映射为“{FEATURE_META[feature].values.join(
-                    ' / ',
-                  )}”。
-                </TeachingTip>
+                <div className="field-title-actions">
+                  {feature === 'stability' && (
+                    <button
+                      type="button"
+                      className="stability-calculator-trigger"
+                      aria-haspopup="dialog"
+                      aria-expanded={showStabilityCalculator}
+                      onClick={() => setShowStabilityCalculator(true)}
+                    >
+                      <Calculator size={13} />
+                      计算稳定度
+                    </button>
+                  )}
+                  <TeachingTip
+                    title={`${FEATURE_META[feature].name}数字录入`}
+                  >
+                    输入原始数字后自动映射为“
+                    {FEATURE_META[feature].values.join(' / ')}”。
+                  </TeachingTip>
+                </div>
               </div>
               <div className="number-map-input">
                 <div>
@@ -424,6 +546,63 @@ export function CasePanel({
           text="模型训练完成后，即可计算案例结论并开始决策路径演练。"
         />
       )}
+
+      <Modal
+        open={showStabilityCalculator}
+        title="工作稳定度计算"
+        onClose={() => setShowStabilityCalculator(false)}
+      >
+        <div className="stability-calculator">
+          <p className="stability-calculator-intro">
+            请在每类指标中选择一项。确认后系统将自动计算总分并填入工作稳定度输入框。
+          </p>
+          <div className="stability-score-groups">
+            {STABILITY_SCORE_GROUPS.map((group) => (
+              <fieldset className="stability-score-group" key={group.key}>
+                <legend>{group.title}</legend>
+                <div>
+                  {group.options.map((option) => {
+                    const selected =
+                      stabilitySelections[group.key] === option.score
+                    return (
+                      <button
+                        type="button"
+                        className={`stability-score-option ${selected ? 'selected' : ''}`}
+                        aria-pressed={selected}
+                        key={option.label}
+                        onClick={() =>
+                          setStabilitySelections((current) => ({
+                            ...current,
+                            [group.key]: option.score,
+                          }))
+                        }
+                      >
+                        <span>{option.label}</span>
+                        <span
+                          className="stability-selection-box"
+                          aria-hidden="true"
+                        >
+                          {selected && <Check size={13} strokeWidth={3} />}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </fieldset>
+            ))}
+          </div>
+          <div className="stability-calculator-actions">
+            <span>已选择 {selectedStabilityFactorCount} / 5 项</span>
+            <Button
+              type="button"
+              disabled={selectedStabilityFactorCount < 5}
+              onClick={applyStabilityScore}
+            >
+              确定并填入
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </Section>
   )
 }

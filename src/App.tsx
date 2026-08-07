@@ -58,7 +58,7 @@ const delay = (milliseconds: number) =>
   new Promise((resolve) => window.setTimeout(resolve, milliseconds))
 
 const DATASET_STORAGE_KEY = 'id3-dataset-v4'
-const CONSTRAINTS_STORAGE_KEY = 'id3-constraints-v4'
+const CONSTRAINTS_STORAGE_KEY = 'id3-constraints-v5'
 const TRAINED_STORAGE_KEY = 'id3-trained-v4'
 
 export default function App() {
@@ -67,7 +67,7 @@ export default function App() {
     DEFAULT_TRAINING_DATA.map((row) => ({ ...row })),
   )
   const [mappings, setMappings] = usePersistentState<MappingConfig>(
-    'id3-mappings-v3',
+    'id3-mappings-v4',
     cloneMappings(DEFAULT_MAPPINGS),
   )
   const [constraints, setConstraints] = usePersistentState<TreeConstraints>(
@@ -75,7 +75,7 @@ export default function App() {
     { ...DEFAULT_CONSTRAINTS },
   )
   const [sample, setSample] = usePersistentState<LoanSample>(
-    'id3-current-sample-v3',
+    'id3-current-sample-v4',
     { ...SAMPLE_TEMPLATES.中等风险样本 },
   )
   const [convertedRows, setConvertedRows] = useState<CategorizedLoanRow[]>(
@@ -242,7 +242,7 @@ export default function App() {
           <div className="hero-copy">
             <span className="hero-kicker">MACHINE LEARNING LAB</span>
             <h1>ID3决策树借贷审批平台</h1>
-            <p>基于信息熵与信息增益的信贷风控分类实训系统</p>
+            <p>基于信息增益的信贷风控分类实训平台</p>
           </div>
         </div>
 

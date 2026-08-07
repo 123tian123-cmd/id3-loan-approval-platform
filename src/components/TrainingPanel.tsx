@@ -403,7 +403,12 @@ function MappingEditor({
   ) => {
     setMappings((current) => {
       const next = cloneMappings(current)
-      next[feature][index][field] = value
+      const domain = MAPPING_DOMAINS[feature]
+      const boundedValue = Math.max(
+        domain.min,
+        domain.max === undefined ? value : Math.min(value, domain.max),
+      )
+      next[feature][index][field] = boundedValue
       return next
     })
   }
@@ -452,6 +457,8 @@ function MappingEditor({
                 <TeachingTip title={`${FEATURE_META[feature].name}离散标准`}>
                   {feature === 'stability'
                     ? `有效范围为 ${domain.min} 至 ${domain.max} ${domain.unit}。`
+                    : feature === 'age'
+                      ? `有效范围为 ${domain.min} 至 ${domain.max} ${domain.unit}。`
                     : feature === 'dti'
                       ? 'DTI = 负债金额 ÷ 收入 × 100%，最后一档不设上限。'
                     : `从 ${domain.min} ${domain.unit}起，最高分类不设上限。`}
@@ -471,7 +478,7 @@ function MappingEditor({
                 </div>
                 {mappings[feature].map((rule, index) => {
                   const openEnded =
-                    feature !== 'stability' &&
+                    domain.max === undefined &&
                     index === mappings[feature].length - 1
                   return (
                     <div className="rule-row" key={rule.label}>
