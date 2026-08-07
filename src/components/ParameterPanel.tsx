@@ -18,7 +18,7 @@ const PARAM_META: Array<{
   min: number
   max: number
   step: number
-  range: string
+  range?: string
   icon: typeof Layers3
   tip: string
 }> = [
@@ -27,11 +27,11 @@ const PARAM_META: Array<{
     name: '限制最大深度',
     subtitle: '控制决策树整体层数',
     min: 0,
-    max: 5,
+    max: 10,
     step: 1,
-    range: '推荐 4–5',
+    range: '推荐 3–10',
     icon: Layers3,
-    tip: '当前模型包含 5 个候选特征，深度超过 5 不会产生额外有效划分。',
+    tip: '数值越大，决策树可生成的层级越多；数值越小，预剪枝约束越强。',
   },
   {
     key: 'minLeafSamples',
@@ -40,7 +40,7 @@ const PARAM_META: Array<{
     min: 0,
     max: 300,
     step: 1,
-    range: '推荐 20–75',
+    range: '推荐 10–20',
     icon: Leaf,
     tip: '数值越大，树结构越简单；建议结合少数类别规模避免生成不稳定叶子。',
   },
@@ -51,7 +51,7 @@ const PARAM_META: Array<{
     min: 0,
     max: 600,
     step: 1,
-    range: '推荐 60–180',
+    range: '推荐 20–50',
     icon: SplitSquareVertical,
     tip: '节点样本数低于该值就停止分裂，可减少小样本造成的不稳定规则。',
   },
@@ -62,7 +62,6 @@ const PARAM_META: Array<{
     min: 0,
     max: 1,
     step: 0.001,
-    range: '推荐 0.005–0.05',
     icon: Gauge,
     tip: '候选特征增益低于阈值时停止分裂；提高阈值会使树更浅、更保守。',
   },
@@ -135,11 +134,12 @@ export function ParameterPanel({
                 <div>
                   <label htmlFor={`param-${item.key}`}>{item.name}</label>
                   <TeachingTip title={item.name}>
-                    {item.tip} {item.range}。
+                    {item.tip}
+                    {item.range ? ` ${item.range}。` : ''}
                   </TeachingTip>
                 </div>
                 <span>{item.subtitle}</span>
-                <small>{item.range}</small>
+                {item.range && <small>{item.range}</small>}
               </div>
               <div className="parameter-input">
                 <input
