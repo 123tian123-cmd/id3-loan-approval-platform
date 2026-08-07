@@ -27,6 +27,7 @@ import {
   cloneMappings,
   featureStats,
   mappingErrors,
+  parseApprovalLabel,
 } from '../lib/id3'
 import type {
   CategorizedLoanRow,
@@ -88,7 +89,9 @@ function normalizeImportedRow(
     stability: valueFor(HEADERS.stability) as string | number,
     overdue: String(valueFor(HEADERS.overdue)),
     dti: valueFor(HEADERS.dti) as string | number,
-    label: String(valueFor(HEADERS.label)),
+    label:
+      parseApprovalLabel(valueFor(HEADERS.label)) ??
+      String(valueFor(HEADERS.label)).trim(),
   }
 }
 
@@ -265,8 +268,10 @@ function DatasetEditor({
                 </td>
               </tr>
             )}
-            {rows.map((row, index) => (
-              <tr key={row.id}>
+            {rows.map((row, index) => {
+              const approvalLabel = parseApprovalLabel(row.label)
+              return (
+                <tr key={row.id}>
                 <td>
                   <input
                     type="checkbox"
@@ -323,19 +328,27 @@ function DatasetEditor({
                 </td>
                 <td>
                   <select
-                    value={row.label}
+                    className={`approval-select ${
+                      approvalLabel === '通过'
+                        ? 'approved-value'
+                        : approvalLabel === '拒绝'
+                          ? 'rejected-value'
+                          : ''
+                    }`}
+                    value={approvalLabel ?? ''}
                     aria-label={`${row.id} 审批结果`}
                     onChange={(event) =>
                       updateCell(row.id, 'label', event.target.value)
                     }
                   >
                     <option value="">请选择</option>
-                    <option value="通过">通过</option>
-                    <option value="拒绝">拒绝</option>
+                    <option value="通过">批准</option>
+                    <option value="拒绝">不批准</option>
                   </select>
                 </td>
-              </tr>
-            ))}
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>
@@ -344,7 +357,7 @@ function DatasetEditor({
         <summary>
           <BarChart3 size={18} />
           查看特征分组统计
-          <span>自动计算通过 / 拒绝数量及样本占比</span>
+          <span>自动计算批准 / 不批准数量及样本占比</span>
         </summary>
         <div className="stats-grid">
           {Object.keys(FEATURE_META).map((feature) => (
@@ -356,11 +369,11 @@ function DatasetEditor({
                   <div className="stat-line" key={item.value}>
                     <strong>{item.value}</strong>
                     <span className="pass-text">
-                      通过 {item.pass}（
+                      批准 {item.pass}（
                       {((item.pass / item.total) * 100).toFixed(0)}%）
                     </span>
                     <span className="reject-text">
-                      拒绝 {item.reject}（
+                      不批准 {item.reject}（
                       {((item.reject / item.total) * 100).toFixed(0)}%）
                     </span>
                   </div>
@@ -446,6 +459,10 @@ function MappingEditor({
                 </TeachingTip>
               </div>
 
+              <div className="mapping-section-title">
+                <span>手动输入区间</span>
+                <small>直接修改各分类的上下限</small>
+              </div>
               <div className="rule-table">
                 <div className="rule-header">
                   <span>分类标签</span>
@@ -500,29 +517,41 @@ function MappingEditor({
                 })}
               </div>
 
-              <div className="range-controls">
-                {mappings[feature].slice(0, -1).map((rule, index) => (
-                  <label key={`${rule.label}-boundary`}>
-                    <span>
-                      {rule.label} / {mappings[feature][index + 1].label} 分界
-                      <b>{rule.max}</b>
-                    </span>
-                    <input
-                      type="range"
-                      min={domain.min}
-                      max={domain.sliderMax - (domain.step ?? 1)}
-                      step={domain.step ?? 1}
-                      value={rule.max ?? domain.sliderMax - (domain.step ?? 1)}
-                      onChange={(event) =>
-                        updateBoundary(feature, index, event.target.valueAsNumber)
-                      }
-                    />
-                  </label>
-                ))}
+              <div className="range-section">
+                <div className="mapping-section-title">
+                  <span>拖动调整分界</span>
+                  <small>滑块会同步更新相邻区间</small>
+                </div>
+                <div className="range-controls">
+                  {mappings[feature].slice(0, -1).map((rule, index) => (
+                    <label key={`${rule.label}-boundary`}>
+                      <span>
+                        <em>
+                          {rule.label} / {mappings[feature][index + 1].label}
+                        </em>
+                        <b>分界值 {rule.max}</b>
+                      </span>
+                      <input
+                        type="range"
+                        min={domain.min}
+                        max={domain.sliderMax - (domain.step ?? 1)}
+                        step={domain.step ?? 1}
+                        value={rule.max ?? domain.sliderMax - (domain.step ?? 1)}
+                        onChange={(event) =>
+                          updateBoundary(
+                            feature,
+                            index,
+                            event.target.valueAsNumber,
+                          )
+                        }
+                      />
+                    </label>
+                  ))}
+                </div>
               </div>
 
               <div className="mapping-preview">
-                <span>实时预览</span>
+                <span>映射结果预览</span>
                 {mappings[feature].map((rule) => (
                   <code key={rule.label}>
                     {rule.min}
@@ -573,7 +602,7 @@ function TrainingResults({
         <div className="block-heading">
           <div>
             <span>OUTPUT 01</span>
-            <h3>数字 → 汉字映射转换结果</h3>
+            <h3>映射转换结果</h3>
           </div>
           <em>{convertedRows.length} 条已转换</em>
         </div>
@@ -587,7 +616,7 @@ function TrainingResults({
                 <th colSpan={2}>工作稳定度</th>
                 <th colSpan={2}>信用卡逾期史</th>
                 <th colSpan={2}>DTI</th>
-                <th rowSpan={2}>标签</th>
+                <th rowSpan={2}>审批结果</th>
               </tr>
               <tr>
                 <th>原始</th>
@@ -616,7 +645,13 @@ function TrainingResults({
                   <td>{row.overdue}</td>
                   <td>{rows[index]?.dti}%</td>
                   <td className="converted">{row.dti}</td>
-                  <td>{row.label}</td>
+                  <td
+                    className={
+                      row.label === '通过' ? 'pass-text' : 'reject-text'
+                    }
+                  >
+                    {row.label === '通过' ? '批准' : '不批准'}
+                  </td>
                 </tr>
               ))}
             </tbody>

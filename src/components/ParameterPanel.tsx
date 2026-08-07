@@ -27,31 +27,31 @@ const PARAM_META: Array<{
     name: '限制最大深度',
     subtitle: '控制决策树整体层数',
     min: 0,
-    max: 12,
+    max: 5,
     step: 1,
-    range: '推荐 2–6',
+    range: '约 800 条样本推荐 3–5',
     icon: Layers3,
-    tip: '数值过大容易过拟合，过小会削弱模型分类能力。',
+    tip: '当前模型包含 5 个候选特征，深度超过 5 不会产生额外有效划分。',
   },
   {
     key: 'minLeafSamples',
     name: '限制叶子最小样本数',
     subtitle: '叶子节点最少容纳样本',
     min: 0,
-    max: 20,
+    max: 200,
     step: 1,
-    range: '推荐 1–5',
+    range: '约 800 条样本推荐 10–40',
     icon: Leaf,
-    tip: '数值越大，树结构越简单；过大可能让有价值的少数分支无法形成。',
+    tip: '数值越大，树结构越简单；该区间约占总样本量的 1.25%–5%。',
   },
   {
     key: 'minSplitSamples',
     name: '限制分裂最小样本数',
     subtitle: '中间节点继续分裂的门槛',
     min: 0,
-    max: 30,
+    max: 400,
     step: 1,
-    range: '推荐 2–10',
+    range: '约 800 条样本推荐 30–100',
     icon: SplitSquareVertical,
     tip: '节点样本数低于该值就停止分裂，可减少小样本造成的不稳定规则。',
   },
@@ -61,8 +61,8 @@ const PARAM_META: Array<{
     subtitle: '划分所需最低信息增益',
     min: 0,
     max: 1,
-    step: 0.01,
-    range: '推荐 0.01–0.30',
+    step: 0.001,
+    range: '约 800 条样本推荐 0.005–0.05',
     icon: Gauge,
     tip: '候选特征增益低于阈值时停止分裂；提高阈值会使树更浅、更保守。',
   },
@@ -70,18 +70,22 @@ const PARAM_META: Array<{
 
 function structureSummary(values: TreeConstraints) {
   const strength =
-    (values.maxDepth <= 2 ? 2 : values.maxDepth <= 4 ? 1 : 0) +
-    (values.minLeafSamples >= 3 ? 1 : 0) +
-    (values.minSplitSamples >= 6 ? 1 : 0) +
-    (values.minGain >= 0.1 ? 2 : values.minGain >= 0.03 ? 1 : 0)
-  if (strength >= 4) {
+    (values.maxDepth <= 3 ? 2 : values.maxDepth <= 4 ? 1 : 0) +
+    (values.minLeafSamples >= 40 ? 2 : values.minLeafSamples >= 15 ? 1 : 0) +
+    (values.minSplitSamples >= 100
+      ? 2
+      : values.minSplitSamples >= 40
+        ? 1
+        : 0) +
+    (values.minGain >= 0.05 ? 2 : values.minGain >= 0.01 ? 1 : 0)
+  if (strength >= 6) {
     return {
       title: '强约束 · 树结构偏浅',
       text: '泛化更稳定、规则更容易解释，但可能忽略少数样本中的有效模式。',
       tone: 'conservative',
     }
   }
-  if (strength <= 1) {
+  if (strength <= 2) {
     return {
       title: '弱约束 · 树结构偏深',
       text: '分类路径更细致，训练集拟合能力更强，同时需要关注过拟合风险。',

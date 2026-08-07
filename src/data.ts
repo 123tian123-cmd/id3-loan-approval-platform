@@ -128,9 +128,9 @@ export const DEFAULT_TRAINING_DATA: LoanRow[] = [
 ]
 
 export const DEFAULT_CONSTRAINTS: TreeConstraints = {
-  maxDepth: 4,
-  minLeafSamples: 1,
-  minSplitSamples: 2,
+  maxDepth: 5,
+  minLeafSamples: 15,
+  minSplitSamples: 40,
   minGain: 0.01,
 }
 
@@ -139,25 +139,25 @@ export const CONSTRAINT_PRESETS: Record<
   { description: string; values: TreeConstraints }
 > = {
   保守风控模型: {
-    description: '强约束、浅层树，结构更容易解释',
+    description: '约 800 条样本下的强约束配置，优先保证规则稳定',
     values: {
-      maxDepth: 2,
-      minLeafSamples: 3,
-      minSplitSamples: 6,
-      minGain: 0.12,
+      maxDepth: 3,
+      minLeafSamples: 40,
+      minSplitSamples: 100,
+      minGain: 0.05,
     },
   },
   标准教学模型: {
-    description: '兼顾分类能力与课堂演示完整性',
+    description: '适配约 800 条样本，兼顾分类能力与可解释性',
     values: DEFAULT_CONSTRAINTS,
   },
   宽松风控模型: {
-    description: '弱约束、深层树，保留更多样本细节',
+    description: '约 800 条样本下保留更多细分规则与少数模式',
     values: {
-      maxDepth: 6,
-      minLeafSamples: 1,
-      minSplitSamples: 2,
-      minGain: 0.001,
+      maxDepth: 5,
+      minLeafSamples: 5,
+      minSplitSamples: 15,
+      minGain: 0.002,
     },
   },
 }
@@ -198,7 +198,7 @@ export const MAPPING_DOMAINS: Record<
   }
 > = {
   age: { unit: '岁', min: 18, sliderMax: 80, example: 32 },
-  income: { unit: '元/月', min: 0, sliderMax: 50000, example: 8000 },
+  income: { unit: '元/月', min: 0, sliderMax: 20000, example: 8000 },
   stability: {
     unit: '分',
     min: 0,

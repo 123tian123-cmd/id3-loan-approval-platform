@@ -125,6 +125,20 @@ export function mapValue(
   return { label: closest.rule.label, adjusted: true }
 }
 
+export function parseApprovalLabel(value: unknown): ApprovalLabel | null {
+  const normalized = String(value ?? '')
+    .trim()
+    .replace(/\s+/g, '')
+
+  if (['批准', '通过', '审批批准', '审批通过'].includes(normalized)) {
+    return '通过'
+  }
+  if (['不批准', '拒绝', '审批不批准', '审批拒绝'].includes(normalized)) {
+    return '拒绝'
+  }
+  return null
+}
+
 export function validateRows(
   rows: LoanRow[],
   mappings: MappingConfig,
@@ -150,8 +164,8 @@ export function validateRows(
     if (!FEATURE_META.overdue.values.includes(String(row.overdue).trim())) {
       errors.push(`${position}的信用卡逾期史只能填写“有”或“无”`)
     }
-    if (!['通过', '拒绝'].includes(String(row.label).trim())) {
-      errors.push(`${position}的审批结果只能填写“通过”或“拒绝”`)
+    if (!parseApprovalLabel(row.label)) {
+      errors.push(`${position}的审批结果只能填写“批准”或“不批准”`)
     }
   })
 
@@ -172,7 +186,9 @@ export function categorizeRows(
       String(row.stability),
     overdue: String(row.overdue).trim(),
     dti: mapValue(row.dti, 'dti', mappings)?.label ?? String(row.dti),
-    label: String(row.label).trim() as ApprovalLabel,
+    label:
+      parseApprovalLabel(row.label) ??
+      (String(row.label).trim() as ApprovalLabel),
     raw: row,
   }))
 }
@@ -296,10 +312,23 @@ export function buildTree(
   return build(rows, features, 0)
 }
 
+export interface PredictionFallback {
+  parentId: string
+  branch: string
+  node: TreeNode
+}
+
+export interface PredictionResult {
+  label: ApprovalLabel
+  path: TreeNode[]
+  branches: string[]
+  fallback?: PredictionFallback
+}
+
 export function predict(
   tree: TreeNode,
   sample: Record<FeatureKey, string>,
-): { label: ApprovalLabel; path: TreeNode[]; branches: string[] } {
+): PredictionResult {
   const path: TreeNode[] = [tree]
   const branches: string[] = []
   let current = tree
@@ -308,7 +337,30 @@ export function predict(
     const value = sample[current.feature]
     branches.push(value)
     const next = current.branches[value]
-    if (!next) return { label: current.majority, path, branches }
+    if (!next) {
+      const fallbackNode: TreeNode = {
+        id: `${current.id}-fallback-${value}`,
+        depth: current.depth + 1,
+        samples: [],
+        entropy: 0,
+        gain: 0,
+        majority: current.majority,
+        label: current.majority,
+        branches: {},
+        reason: `训练子集中没有“${value}”分支，按当前节点多数类回退`,
+      }
+      path.push(fallbackNode)
+      return {
+        label: current.majority,
+        path,
+        branches,
+        fallback: {
+          parentId: current.id,
+          branch: value,
+          node: fallbackNode,
+        },
+      }
+    }
     current = next
     path.push(current)
   }

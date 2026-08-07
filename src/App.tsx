@@ -58,7 +58,7 @@ const delay = (milliseconds: number) =>
   new Promise((resolve) => window.setTimeout(resolve, milliseconds))
 
 const DATASET_STORAGE_KEY = 'id3-dataset-v4'
-const CONSTRAINTS_STORAGE_KEY = 'id3-constraints-v3'
+const CONSTRAINTS_STORAGE_KEY = 'id3-constraints-v4'
 const TRAINED_STORAGE_KEY = 'id3-trained-v4'
 
 export default function App() {

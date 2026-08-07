@@ -9,9 +9,10 @@ import {
   Route,
   ShieldAlert,
 } from 'lucide-react'
-import { useState, type Dispatch, type SetStateAction } from 'react'
+import { useMemo, useState, type Dispatch, type SetStateAction } from 'react'
 import { FEATURE_META, MAPPING_DOMAINS } from '../data'
 import { mapValue, predict } from '../lib/id3'
+import type { PredictionFallback } from '../lib/id3'
 import type {
   ApprovalLabel,
   LoanSample,
@@ -27,6 +28,7 @@ interface CaseDecision {
   risk: '低' | '中' | '高'
   path: TreeNode[]
   branches: string[]
+  fallback?: PredictionFallback
 }
 
 type DirectNumericFeature = Exclude<NumericFeatureKey, 'dti'>
@@ -36,6 +38,31 @@ const CASE_NUMERIC_FEATURES: DirectNumericFeature[] = [
   'income',
   'stability',
 ]
+
+function attachFallbackBranch(
+  node: TreeNode,
+  fallback: PredictionFallback,
+): TreeNode {
+  if (node.id === fallback.parentId) {
+    return {
+      ...node,
+      branches: {
+        ...node.branches,
+        [fallback.branch]: fallback.node,
+      },
+    }
+  }
+
+  return {
+    ...node,
+    branches: Object.fromEntries(
+      Object.entries(node.branches).map(([branch, child]) => [
+        branch,
+        attachFallbackBranch(child, fallback),
+      ]),
+    ),
+  }
+}
 
 function riskLevel(
   label: ApprovalLabel,
@@ -109,6 +136,10 @@ export function CasePanel({
   const [debtAmount, setDebtAmount] = useState('3400')
   const [decision, setDecision] = useState<CaseDecision | null>(null)
   const [showPath, setShowPath] = useState(false)
+  const decisionTree = useMemo(() => {
+    if (!tree || !decision?.fallback) return tree
+    return attachFallbackBranch(tree, decision.fallback)
+  }, [tree, decision])
 
   const incomeValue = numericValues.income.trim()
     ? Number(numericValues.income)
@@ -352,7 +383,7 @@ export function CasePanel({
         </div>
       )}
 
-      {showPath && decision && tree && (
+      {showPath && decision && decisionTree && (
         <>
           <div className="path-card">
             <div>
@@ -378,7 +409,7 @@ export function CasePanel({
             </div>
           </div>
           <TreeCanvas
-            tree={tree}
+            tree={decisionTree}
             title="案例决策路径演练"
             highlightedNodeIds={decision.path.map((node) => node.id)}
             onNotice={(message) => onNotice(message)}
