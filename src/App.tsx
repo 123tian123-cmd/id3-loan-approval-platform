@@ -57,9 +57,9 @@ function usePersistentState<T>(key: string, fallback: T) {
 const delay = (milliseconds: number) =>
   new Promise((resolve) => window.setTimeout(resolve, milliseconds))
 
-const DATASET_STORAGE_KEY = 'id3-dataset-v4'
+const DATASET_STORAGE_KEY = 'id3-dataset-v5'
 const CONSTRAINTS_STORAGE_KEY = 'id3-constraints-v5'
-const TRAINED_STORAGE_KEY = 'id3-trained-v4'
+const TRAINED_STORAGE_KEY = 'id3-trained-v5'
 
 export default function App() {
   const [rows, setRows] = usePersistentState<LoanRow[]>(
@@ -321,7 +321,7 @@ export default function App() {
         </div>
         <p>
           教学演示平台 · 信息熵 · 信息增益 · 信贷风控 ·
-          所有数据仅保存在本地浏览器
+          默认训练数据随平台发布，导入和编辑仅保存在当前浏览器
         </p>
       </footer>
 
