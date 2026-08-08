@@ -19,12 +19,12 @@ export const FEATURE_META: Record<
   income: {
     name: '收入',
     shortName: '收入',
-    values: ['高', '中等', '低'],
+    values: ['高收入', '中等收入', '低收入'],
   },
   stability: {
     name: '工作稳定度',
     shortName: '稳定度',
-    values: ['稳定', '比较稳定', '不稳定'],
+    values: ['稳定', '一般', '不稳定'],
   },
   overdue: {
     name: '信用卡逾期史',
@@ -55,28 +55,30 @@ export const NUMERIC_FEATURES: NumericFeatureKey[] = [
 
 export const DEFAULT_MAPPINGS: MappingConfig = {
   age: [
-    { label: '青年', min: 18, max: 30 },
-    { label: '壮年', min: 31, max: 40 },
-    { label: '中年', min: 41, max: 50 },
-    { label: '老年', min: 51, max: 65 },
+    { label: '青年', min: 18, max: 25 },
+    { label: '壮年', min: 26, max: 40 },
+    { label: '中年', min: 41, max: 55 },
+    { label: '老年', min: 56, max: 65 },
   ],
   income: [
-    { label: '低', min: 0, max: 4999 },
-    { label: '中等', min: 5000, max: 9999 },
-    { label: '高', min: 10000, max: null },
+    { label: '低收入', min: 0, max: 4999 },
+    { label: '中等收入', min: 5000, max: 15000 },
+    { label: '高收入', min: 15001, max: null },
   ],
   stability: [
     { label: '不稳定', min: 0, max: 39 },
-    { label: '比较稳定', min: 40, max: 69 },
+    { label: '一般', min: 40, max: 69 },
     { label: '稳定', min: 70, max: 100 },
   ],
   dti: [
-    { label: '优', min: 0, max: 20 },
-    { label: '良', min: 20.01, max: 35 },
-    { label: '紧', min: 35.01, max: 50 },
-    { label: '重', min: 50.01, max: null },
+    { label: '优', min: 0, max: 19.99 },
+    { label: '良', min: 20, max: 34.99 },
+    { label: '紧', min: 35, max: 49.99 },
+    { label: '重', min: 50, max: 100 },
   ],
 }
+
+export const QUICK_MAPPING_PRESET: MappingConfig = DEFAULT_MAPPINGS
 
 export const DEFAULT_TRAINING_DATA: LoanRow[] = defaultTrainingData
 
@@ -91,26 +93,31 @@ export const CONSTRAINT_PRESETS: Record<
   string,
   { description: string; values: TreeConstraints }
 > = {
-  保守风控模型: {
+  保守风控: {
     description: '强约束配置，优先保证规则稳定和模型泛化',
     values: {
       maxDepth: 3,
-      minLeafSamples: 75,
-      minSplitSamples: 180,
-      minGain: 0.05,
+      minLeafSamples: 20,
+      minSplitSamples: 42,
+      minGain: 0.075,
     },
   },
-  标准教学模型: {
-    description: '兼顾分类能力、规则稳定性与可解释性',
-    values: DEFAULT_CONSTRAINTS,
-  },
-  宽松风控模型: {
-    description: '弱约束配置，保留更多细分规则与少数模式',
+  均衡模型: {
+    description: '兼顾分类能力、结构稳定性与可解释性',
     values: {
       maxDepth: 5,
+      minLeafSamples: 15,
+      minSplitSamples: 33,
+      minGain: 0.045,
+    },
+  },
+  宽松风控: {
+    description: '弱约束配置，保留更多细分规则与少数模式',
+    values: {
+      maxDepth: 6,
       minLeafSamples: 10,
-      minSplitSamples: 30,
-      minGain: 0.002,
+      minSplitSamples: 24,
+      minGain: 0.015,
     },
   },
 }
@@ -118,21 +125,21 @@ export const CONSTRAINT_PRESETS: Record<
 export const SAMPLE_TEMPLATES = {
   低风险样本: {
     age: '壮年',
-    income: '高',
+    income: '高收入',
     stability: '稳定',
     overdue: '无' as const,
     dti: '优',
   },
   中等风险样本: {
     age: '青年',
-    income: '中等',
-    stability: '比较稳定',
+    income: '中等收入',
+    stability: '一般',
     overdue: '无' as const,
     dti: '紧',
   },
   高风险样本: {
     age: '老年',
-    income: '低',
+    income: '低收入',
     stability: '不稳定',
     overdue: '有' as const,
     dti: '重',
@@ -162,6 +169,7 @@ export const MAPPING_DOMAINS: Record<
   dti: {
     unit: '%',
     min: 0,
+    max: 100,
     sliderMax: 100,
     example: 32.5,
     step: 0.01,

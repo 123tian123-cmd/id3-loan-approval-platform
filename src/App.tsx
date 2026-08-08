@@ -5,8 +5,15 @@ import {
   ShieldCheck,
   X,
 } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from 'react'
 import { CasePanel } from './components/CasePanel'
+import { EvaluationPanel } from './components/EvaluationPanel'
 import { FormulaPanel } from './components/FormulaPanel'
 import { ParameterPanel } from './components/ParameterPanel'
 import { TrainingPanel } from './components/TrainingPanel'
@@ -106,6 +113,7 @@ export default function App() {
     }
   })
   const [training, setTraining] = useState(false)
+  const [evaluationStale, setEvaluationStale] = useState(false)
   const [progress, setProgress] = useState(0)
   const [logs, setLogs] = useState<string[]>([])
   const [validationIssues, setValidationIssues] = useState<string[]>([])
@@ -140,6 +148,16 @@ export default function App() {
     setTree(prunedTree)
     setMetrics(treeMetrics(prunedTree, convertedRows))
   }, [constraints, convertedRows, training])
+
+  const updateRows: Dispatch<SetStateAction<LoanRow[]>> = (next) => {
+    setRows(next)
+    setEvaluationStale(true)
+  }
+
+  const updateMappings: Dispatch<SetStateAction<MappingConfig>> = (next) => {
+    setMappings(next)
+    setEvaluationStale(true)
+  }
 
   const train = async () => {
     const issues = [...mappingErrors(mappings), ...validateRows(rows, mappings)]
@@ -204,10 +222,41 @@ export default function App() {
     setConvertedRows(categorized)
     setTree(draftTree)
     setMetrics(draftMetrics)
+    setEvaluationStale(false)
     setTraining(false)
     window.localStorage.setItem(TRAINED_STORAGE_KEY, 'true')
     notice(
       `模型训练完成，根节点为${FEATURE_META[draftMetrics.gains[0].feature].name}`,
+    )
+  }
+
+  const refreshEvaluation = () => {
+    if (!tree) {
+      notice('请先完成模型训练，再刷新量化评估', 'error')
+      return
+    }
+    if (!rows.length) {
+      notice('无法刷新评估：训练数据集为空', 'error')
+      return
+    }
+
+    const issues = [...mappingErrors(mappings), ...validateRows(rows, mappings)]
+    if (issues.length) {
+      setValidationIssues(issues)
+      notice(`评估刷新已拦截：发现 ${issues.length} 项数据或映射问题`, 'error')
+      return
+    }
+
+    const categorized = categorizeRows(rows, mappings)
+    const refreshedTree = buildTree(categorized, constraints)
+    const refreshedMetrics = treeMetrics(refreshedTree, categorized)
+    setConvertedRows(categorized)
+    setTree(refreshedTree)
+    setMetrics(refreshedMetrics)
+    setEvaluationStale(false)
+    window.localStorage.setItem(TRAINED_STORAGE_KEY, 'true')
+    notice(
+      `模型评估已刷新，当前训练集准确率 ${(refreshedMetrics.accuracy * 100).toFixed(2)}%`,
     )
   }
 
@@ -218,6 +267,7 @@ export default function App() {
     setConvertedRows([])
     setTree(null)
     setMetrics(null)
+    setEvaluationStale(false)
     window.localStorage.removeItem(TRAINED_STORAGE_KEY)
     notice('训练结果、增益数据和决策树画布已清空', 'info')
   }
@@ -227,6 +277,7 @@ export default function App() {
     ['training', '模型训练'],
     ['parameters', '约束参数'],
     ['visualization', '训练可视化'],
+    ['evaluation', '量化评估'],
     ['case', '案例输入'],
   ]
 
@@ -287,9 +338,9 @@ export default function App() {
         <FormulaPanel />
         <TrainingPanel
           rows={rows}
-          setRows={setRows}
+          setRows={updateRows}
           mappings={mappings}
-          setMappings={setMappings}
+          setMappings={updateMappings}
           convertedRows={convertedRows}
           metrics={metrics}
           training={training}
@@ -305,6 +356,14 @@ export default function App() {
           onNotice={notice}
         />
         <VisualizationPanel tree={tree} onNotice={notice} />
+        <EvaluationPanel
+          tree={tree}
+          rows={convertedRows}
+          sourceRowCount={rows.length}
+          stale={evaluationStale}
+          training={training}
+          onRefresh={refreshEvaluation}
+        />
         <CasePanel
           tree={tree}
           sample={sample}

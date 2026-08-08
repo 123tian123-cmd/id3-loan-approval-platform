@@ -5,6 +5,7 @@ import {
   Plus,
   RotateCcw,
   Settings2,
+  Sparkles,
   Trash2,
   Upload,
 } from 'lucide-react'
@@ -21,6 +22,7 @@ import {
   FEATURE_META,
   MAPPING_DOMAINS,
   NUMERIC_FEATURES,
+  QUICK_MAPPING_PRESET,
 } from '../data'
 import {
   categorizeRows,
@@ -389,11 +391,18 @@ function DatasetEditor({
 function MappingEditor({
   mappings,
   setMappings,
+  onNotice,
 }: {
   mappings: MappingConfig
   setMappings: Dispatch<SetStateAction<MappingConfig>>
+  onNotice: (message: string, tone?: 'success' | 'error' | 'info') => void
 }) {
   const errors = mappingErrors(mappings)
+
+  const applyQuickPreset = () => {
+    setMappings(cloneMappings(QUICK_MAPPING_PRESET))
+    onNotice('已快速填充年龄、收入、工作稳定度与 DTI 映射规则')
+  }
 
   const updateRule = (
     feature: NumericFeatureKey,
@@ -439,9 +448,18 @@ function MappingEditor({
             数值字段先转换为分类标签，再参与 ID3 信息增益计算。
           </span>
         </div>
-        <span className={errors.length ? 'validation-badge error' : 'validation-badge'}>
-          {errors.length ? `${errors.length} 项冲突` : '映射校验通过'}
-        </span>
+        <div className="mapping-intro-actions">
+          <Button variant="secondary" onClick={applyQuickPreset}>
+            <Sparkles size={16} /> 快速填充映射规则
+          </Button>
+          <span
+            className={
+              errors.length ? 'validation-badge error' : 'validation-badge'
+            }
+          >
+            {errors.length ? `${errors.length} 项冲突` : '映射校验通过'}
+          </span>
+        </div>
       </div>
 
       <div className="mapping-grid">
@@ -460,7 +478,7 @@ function MappingEditor({
                     : feature === 'age'
                       ? `有效范围为 ${domain.min} 至 ${domain.max} ${domain.unit}。`
                     : feature === 'dti'
-                      ? 'DTI = 负债金额 ÷ 收入 × 100%，最后一档不设上限。'
+                      ? 'DTI = 负债金额 ÷ 收入 × 100%，有效范围为 0% 至 100%。'
                     : `从 ${domain.min} ${domain.unit}起，最高分类不设上限。`}
                   区间重叠会导致同一数值对应多个分类，训练将被阻止。
                 </TeachingTip>
@@ -477,9 +495,7 @@ function MappingEditor({
                   <span>上限</span>
                 </div>
                 {mappings[feature].map((rule, index) => {
-                  const openEnded =
-                    domain.max === undefined &&
-                    index === mappings[feature].length - 1
+                  const openEnded = rule.max === null
                   return (
                     <div className="rule-row" key={rule.label}>
                       <strong>{rule.label}</strong>
@@ -751,6 +767,7 @@ export function TrainingPanel({
           <MappingEditor
             mappings={mappings}
             setMappings={setMappings}
+            onNotice={onNotice}
           />
         )}
       </div>

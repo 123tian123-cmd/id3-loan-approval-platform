@@ -6,7 +6,13 @@ import {
   SlidersHorizontal,
   SplitSquareVertical,
 } from 'lucide-react'
-import type { Dispatch, SetStateAction } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from 'react'
 import { CONSTRAINT_PRESETS } from '../data'
 import type { TreeConstraints } from '../types'
 import { Section, TeachingTip } from './ui'
@@ -67,34 +73,95 @@ const PARAM_META: Array<{
   },
 ]
 
-function structureSummary(values: TreeConstraints) {
-  const strength =
-    (values.maxDepth <= 3 ? 2 : values.maxDepth <= 4 ? 1 : 0) +
-    (values.minLeafSamples >= 75 ? 2 : values.minLeafSamples >= 30 ? 1 : 0) +
-    (values.minSplitSamples >= 180
-      ? 2
-      : values.minSplitSamples >= 75
+type ConstraintKey = keyof TreeConstraints
+type ConstraintDrafts = Record<ConstraintKey, string>
+type StructureTone = 'conservative' | 'balanced' | 'loose' | 'invalid'
+
+interface StructureSummary {
+  title: string
+  text: string
+  tone: StructureTone
+}
+
+function toDrafts(values: TreeConstraints): ConstraintDrafts {
+  return {
+    maxDepth: String(values.maxDepth),
+    minLeafSamples: String(values.minLeafSamples),
+    minSplitSamples: String(values.minSplitSamples),
+    minGain: String(values.minGain),
+  }
+}
+
+function isValidParameter(
+  item: (typeof PARAM_META)[number],
+  rawValue: string,
+): boolean {
+  const value = Number(rawValue)
+  return (
+    rawValue.trim() !== '' &&
+    Number.isFinite(value) &&
+    value > 0 &&
+    value <= item.max &&
+    (item.step !== 1 || Number.isInteger(value))
+  )
+}
+
+function structureSummary(values: TreeConstraints): StructureSummary {
+  const scores = {
+    A: values.maxDepth <= 3 ? 1 : values.maxDepth <= 5 ? 2 : 3,
+    B: values.minLeafSamples >= 18 ? 1 : values.minLeafSamples >= 12 ? 2 : 3,
+    C:
+      values.minSplitSamples >= 40
         ? 1
-        : 0) +
-    (values.minGain >= 0.05 ? 2 : values.minGain >= 0.01 ? 1 : 0)
-  if (strength >= 6) {
+        : values.minSplitSamples >= 28
+          ? 2
+          : 3,
+    D: values.minGain >= 0.07 ? 1 : values.minGain >= 0.03 ? 2 : 3,
+  }
+
+  let score =
+    0.4 * scores.A + 0.3 * scores.C + 0.2 * scores.B + 0.1 * scores.D
+  const corrections: string[] = []
+
+  if (values.maxDepth >= 6) {
+    score += 0.3
+    corrections.push('A≥6：+0.3')
+  }
+  if (values.maxDepth <= 3 && values.minSplitSamples >= 40) {
+    score -= 0.2
+    corrections.push('A≤3 且 C≥40：-0.2')
+  }
+  if (values.minGain >= 0.08) {
+    score -= 0.1
+    corrections.push('D≥0.08：-0.1')
+  } else if (values.minGain <= 0.01) {
+    score += 0.1
+    corrections.push('D≤0.01：+0.1')
+  }
+
+  const scoreText = `加权得分 ${score.toFixed(2)}（A ${scores.A}分、B ${scores.B}分、C ${scores.C}分、D ${scores.D}分）`
+  const correctionText = corrections.length
+    ? `；极端修正：${corrections.join('，')}`
+    : '；未触发极端修正'
+
+  if (score <= 1.6) {
     return {
       title: '强约束 · 树结构偏浅',
-      text: '泛化更稳定、规则更容易解释，但可能忽略少数样本中的有效模式。',
+      text: `${scoreText}${correctionText}。当前分裂条件严格，模型结构更精简。`,
       tone: 'conservative',
     }
   }
-  if (strength <= 2) {
+  if (score <= 2.4) {
     return {
-      title: '弱约束 · 树结构偏深',
-      text: '分类路径更细致，训练集拟合能力更强，同时需要关注过拟合风险。',
-      tone: 'loose',
+      title: '均衡模式 · 结构与拟合能力适中',
+      text: `${scoreText}${correctionText}。当前配置兼顾分类能力、稳定性与可解释性。`,
+      tone: 'balanced',
     }
   }
   return {
-    title: '平衡约束 · 适合教学',
-    text: '当前配置兼顾分类能力与可解释性，适合展示完整的信息增益递归过程。',
-    tone: 'balanced',
+    title: '弱约束 · 过拟合风险较高',
+    text: `${scoreText}${correctionText}。当前配置允许更多细分节点，需要关注局部噪声。`,
+    tone: 'loose',
   }
 }
 
@@ -107,11 +174,51 @@ export function ParameterPanel({
   setConstraints: Dispatch<SetStateAction<TreeConstraints>>
   onNotice: (message: string, tone?: 'success' | 'error' | 'info') => void
 }) {
-  const summary = structureSummary(constraints)
+  const [drafts, setDrafts] = useState<ConstraintDrafts>(() =>
+    toDrafts(constraints),
+  )
 
-  const update = (key: keyof TreeConstraints, value: number) => {
-    if (!Number.isFinite(value) || value < 0) return
-    setConstraints((current) => ({ ...current, [key]: value }))
+  useEffect(() => {
+    setDrafts(toDrafts(constraints))
+  }, [
+    constraints.maxDepth,
+    constraints.minLeafSamples,
+    constraints.minSplitSamples,
+    constraints.minGain,
+  ])
+
+  const invalidKeys = useMemo(
+    () =>
+      new Set(
+        PARAM_META.filter((item) => !isValidParameter(item, drafts[item.key]))
+          .map((item) => item.key),
+      ),
+    [drafts],
+  )
+
+  const summary: StructureSummary = invalidKeys.size
+    ? {
+        title: '参数无效 · 已暂停结构判定',
+        text: '四项参数均须为大于 0 且不超过输入上限的有效数值，请修正红色输入项。',
+        tone: 'invalid',
+      }
+    : structureSummary({
+        maxDepth: Number(drafts.maxDepth),
+        minLeafSamples: Number(drafts.minLeafSamples),
+        minSplitSamples: Number(drafts.minSplitSamples),
+        minGain: Number(drafts.minGain),
+      })
+
+  const update = (
+    item: (typeof PARAM_META)[number],
+    rawValue: string,
+  ) => {
+    setDrafts((current) => ({ ...current, [item.key]: rawValue }))
+    if (!isValidParameter(item, rawValue)) return
+    setConstraints((current) => ({
+      ...current,
+      [item.key]: Number(rawValue),
+    }))
   }
 
   return (
@@ -141,24 +248,30 @@ export function ParameterPanel({
                 <span>{item.subtitle}</span>
                 {item.range && <small>{item.range}</small>}
               </div>
-              <div className="parameter-input">
+              <div
+                className={`parameter-input ${
+                  invalidKeys.has(item.key) ? 'invalid' : ''
+                }`}
+              >
                 <input
                   id={`param-${item.key}`}
                   type="number"
                   min={item.min}
                   max={item.max}
                   step={item.step}
-                  value={constraints[item.key]}
-                  onChange={(event) =>
-                    update(item.key, event.target.valueAsNumber)
-                  }
+                  value={drafts[item.key]}
+                  aria-invalid={invalidKeys.has(item.key)}
+                  onChange={(event) => update(item, event.target.value)}
                   onKeyDown={(event) => {
-                    if (['-', 'e', 'E', '+'].includes(event.key)) {
+                    if (['e', 'E', '+'].includes(event.key)) {
                       event.preventDefault()
                     }
                   }}
                 />
                 {item.key === 'minGain' && <span>Gain</span>}
+                {invalidKeys.has(item.key) && (
+                  <small className="parameter-error">请输入大于 0 的有效值</small>
+                )}
               </div>
             </article>
           )
@@ -185,8 +298,9 @@ export function ParameterPanel({
               type="button"
               key={name}
               onClick={() => {
+                setDrafts(toDrafts(preset.values))
                 setConstraints({ ...preset.values })
-                onNotice(`已应用${name}，重新训练后生效`)
+                onNotice(`已应用${name}，结构影响已重新判定`)
               }}
             >
               <span>{name.slice(0, 2)}</span>
@@ -195,8 +309,9 @@ export function ParameterPanel({
                 <small>{preset.description}</small>
               </div>
               <i>
-                深度 {preset.values.maxDepth} · 增益{' '}
-                {preset.values.minGain}
+                深度 {preset.values.maxDepth} · 叶子{' '}
+                {preset.values.minLeafSamples} · 分裂{' '}
+                {preset.values.minSplitSamples} · 增益 {preset.values.minGain}
               </i>
             </button>
           ))}

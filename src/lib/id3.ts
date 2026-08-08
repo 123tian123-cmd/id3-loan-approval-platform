@@ -97,7 +97,10 @@ export function mapValue(
   mappings: MappingConfig,
   nearest = false,
 ): { label: string; adjusted: boolean } | null {
-  const categories = FEATURE_META[feature].values
+  const categories = [
+    ...FEATURE_META[feature].values,
+    ...mappings[feature].map((rule) => rule.label),
+  ]
   if (typeof value === 'string' && categories.includes(value.trim())) {
     return { label: value.trim(), adjusted: false }
   }

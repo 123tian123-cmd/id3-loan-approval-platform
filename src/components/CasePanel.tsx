@@ -10,7 +10,13 @@ import {
   Route,
   ShieldAlert,
 } from 'lucide-react'
-import { useMemo, useState, type Dispatch, type SetStateAction } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from 'react'
 import { FEATURE_META, MAPPING_DOMAINS } from '../data'
 import { mapValue, predict } from '../lib/id3'
 import type { PredictionFallback } from '../lib/id3'
@@ -232,6 +238,31 @@ export function CasePanel({
       ? undefined
       : mapValue(dtiValue, 'dti', mappings, true)?.label
 
+  useEffect(() => {
+    const remapped = Object.fromEntries(
+      CASE_NUMERIC_FEATURES.map((feature) => {
+        const rawValue = numericValues[feature].trim()
+        const numeric = rawValue ? Number(rawValue) : Number.NaN
+        return [
+          feature,
+          Number.isFinite(numeric)
+            ? mapValue(numeric, feature, mappings, true)?.label
+            : undefined,
+        ]
+      }),
+    ) as Record<DirectNumericFeature, string | undefined>
+
+    setSample((current) => ({
+      ...current,
+      age: remapped.age ?? current.age,
+      income: remapped.income ?? current.income,
+      stability: remapped.stability ?? current.stability,
+      dti: dtiCategory ?? current.dti,
+    }))
+    setDecision(null)
+    setShowPath(false)
+  }, [mappings])
+
   const updateNumeric = (feature: DirectNumericFeature, value: string) => {
     setNumericValues((current) => ({ ...current, [feature]: value }))
     if (!value.trim()) return
@@ -347,7 +378,7 @@ export function CasePanel({
     <Section
       id="case"
       icon={<ClipboardCheck size={25} />}
-      eyebrow="MODULE 05 · 案例评估"
+      eyebrow="MODULE 06 · 案例评估"
       title="案例输入"
       description="录入原始数字，计算审批结论，并沿训练后的剪枝决策树演示实际判断路径。"
     >
@@ -385,7 +416,10 @@ export function CasePanel({
                     title={`${FEATURE_META[feature].name}数字录入`}
                   >
                     输入原始数字后自动映射为“
-                    {FEATURE_META[feature].values.join(' / ')}”。
+                    {mappings[feature]
+                      .map((rule) => rule.label)
+                      .join(' / ')}
+                    ”。
                   </TeachingTip>
                 </div>
               </div>
