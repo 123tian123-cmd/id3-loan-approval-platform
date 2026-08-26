@@ -731,7 +731,6 @@ export function TrainingPanel({
       icon={<FileSpreadsheet size={25} />}
       eyebrow="MODULE 02 · 数据与训练"
       title="模型训练"
-      description="编辑借贷样本，设置数值离散规则，并启动完整 ID3 建树流程。"
     >
       <Tabs
         value={tab}

@@ -22,7 +22,6 @@ export function FormulaPanel() {
       icon={<Sigma size={25} />}
       eyebrow="MODULE 01 · 理论基础"
       title="核心公式原理"
-      description="从分类不确定性出发，逐层找到最能区分审批结果的特征。"
       className="formula-panel"
     >
       <div className="formula-stack">

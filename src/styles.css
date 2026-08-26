@@ -2360,7 +2360,7 @@ input[type='range'] {
 
 .parameter-copy {
   display: grid;
-  gap: 3px;
+  gap: 4px;
 }
 
 .parameter-copy > div {
@@ -2428,10 +2428,10 @@ input[type='range'] {
 
 .structure-impact {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 13px;
   margin-top: 13px;
-  padding: 14px 16px;
+  padding: 12px 16px;
   border: 1px solid #3a4461;
   border-radius: 11px;
   background: #191e34;
@@ -2439,7 +2439,7 @@ input[type='range'] {
 
 .structure-impact > div {
   display: grid;
-  gap: 2px;
+  gap: 3px;
 }
 
 .structure-impact > div > span {
@@ -2498,8 +2498,8 @@ input[type='range'] {
 .preset-grid button {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 4px 9px;
-  padding: 12px;
+  gap: 6px 9px;
+  padding: 14px 12px;
   border: 1px solid #38425f;
   border-radius: 9px;
   color: inherit;

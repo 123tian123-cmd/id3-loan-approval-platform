@@ -24,7 +24,6 @@ const PARAM_META: Array<{
   min: number
   max: number
   step: number
-  range?: string
   icon: typeof Layers3
   tip: string
 }> = [
@@ -35,7 +34,6 @@ const PARAM_META: Array<{
     min: 0,
     max: 10,
     step: 1,
-    range: '推荐 3–10',
     icon: Layers3,
     tip: '数值越大，决策树可生成的层级越多；数值越小，预剪枝约束越强。',
   },
@@ -46,7 +44,6 @@ const PARAM_META: Array<{
     min: 0,
     max: 300,
     step: 1,
-    range: '推荐 10–20',
     icon: Leaf,
     tip: '数值越大，树结构越简单；建议结合少数类别规模避免生成不稳定叶子。',
   },
@@ -57,7 +54,6 @@ const PARAM_META: Array<{
     min: 0,
     max: 600,
     step: 1,
-    range: '推荐 20–50',
     icon: SplitSquareVertical,
     tip: '节点样本数低于该值就停止分裂，可减少小样本造成的不稳定规则。',
   },
@@ -242,11 +238,9 @@ export function ParameterPanel({
                   <label htmlFor={`param-${item.key}`}>{item.name}</label>
                   <TeachingTip title={item.name}>
                     {item.tip}
-                    {item.range ? ` ${item.range}。` : ''}
                   </TeachingTip>
                 </div>
                 <span>{item.subtitle}</span>
-                {item.range && <small>{item.range}</small>}
               </div>
               <div
                 className={`parameter-input ${
@@ -283,7 +277,6 @@ export function ParameterPanel({
         <div>
           <span>实时结构影响预测</span>
           <strong>{summary.title}</strong>
-          <p>{summary.text}</p>
         </div>
       </div>
 
@@ -306,7 +299,6 @@ export function ParameterPanel({
               <span>{name.slice(0, 2)}</span>
               <div>
                 <strong>{name}</strong>
-                <small>{preset.description}</small>
               </div>
               <i>
                 深度 {preset.values.maxDepth} · 叶子{' '}
