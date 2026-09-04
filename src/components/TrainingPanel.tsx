@@ -17,7 +17,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from 'react'
-import type { CellValue } from 'exceljs'
+
 import {
   FEATURE_META,
   MAPPING_DOMAINS,
@@ -59,18 +59,21 @@ const HEADERS = {
   label: ['审批结果', '标签', 'label'],
 }
 
-function excelValue(value: CellValue): string | number {
+function excelValue(value: unknown): string | number {
   if (value === null || value === undefined) return ''
   if (typeof value === 'string' || typeof value === 'number') return value
   if (typeof value === 'boolean') return String(value)
   if (value instanceof Date) return value.toISOString().slice(0, 10)
-  if ('result' in value && value.result !== undefined) {
-    return String(value.result)
+  if (typeof value === 'object') {
+    const obj = value as Record<string, unknown>
+    if ('result' in obj && obj.result !== undefined) {
+      return String(obj.result)
+    }
+    if ('richText' in obj && Array.isArray(obj.richText)) {
+      return obj.richText.map((part: { text: string }) => part.text).join('')
+    }
+    if ('text' in obj) return String(obj.text)
   }
-  if ('richText' in value) {
-    return value.richText.map((part) => part.text).join('')
-  }
-  if ('text' in value) return value.text
   return String(value)
 }
 
@@ -164,7 +167,7 @@ function DatasetEditor({
       await workbook.xlsx.load(buffer)
       const sheet = workbook.worksheets[0]
       if (!sheet) throw new Error('工作簿中没有工作表')
-      const headers = (sheet.getRow(1).values as CellValue[])
+      const headers = (sheet.getRow(1).values as unknown[])
         .slice(1)
         .map((value) => String(excelValue(value)).trim())
       const data: Record<string, unknown>[] = []
@@ -543,7 +546,6 @@ function MappingEditor({
               <div className="range-section">
                 <div className="mapping-section-title">
                   <span>拖动调整分界</span>
-                  <small>滑块会同步更新相邻区间</small>
                 </div>
                 <div className="range-controls">
                   {mappings[feature].slice(0, -1).map((rule, index) => (

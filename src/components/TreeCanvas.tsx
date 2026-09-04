@@ -191,7 +191,7 @@ export function TreeCanvas({
     clone.setAttribute('height', String(viewport.height * 2))
     clone.setAttribute(
       'style',
-      `background:#171a2f;font-family:"Microsoft YaHei",sans-serif`,
+      `background:#f4f7fd;font-family:"Microsoft YaHei",sans-serif`,
     )
     const source = new XMLSerializer().serializeToString(clone)
     const blob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' })
@@ -203,7 +203,7 @@ export function TreeCanvas({
       canvas.height = viewport.height * 2
       const context = canvas.getContext('2d')
       if (!context) return
-      context.fillStyle = '#171a2f'
+      context.fillStyle = '#f4f7fd'
       context.fillRect(0, 0, canvas.width, canvas.height)
       context.drawImage(image, 0, 0, canvas.width, canvas.height)
       URL.revokeObjectURL(url)
@@ -273,23 +273,16 @@ export function TreeCanvas({
             y="0"
             width={viewport.width}
             height={viewport.height}
-            fill="#171a2f"
+            fill="transparent"
           />
           <defs>
-            <filter id="nodeGlow" x="-40%" y="-40%" width="180%" height="180%">
-              <feGaussianBlur stdDeviation="5" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
             <linearGradient id="featureNode" x1="0" x2="1">
-              <stop offset="0%" stopColor="#08c7e8" />
-              <stop offset="100%" stopColor="#00eba5" />
+              <stop offset="0%" stopColor="#3d7bfd" />
+              <stop offset="100%" stopColor="#6aa4ff" />
             </linearGradient>
             <linearGradient id="passNode" x1="0" x2="1">
-              <stop offset="0%" stopColor="#14b86f" />
-              <stop offset="100%" stopColor="#00e6a0" />
+              <stop offset="0%" stopColor="#10b981" />
+              <stop offset="100%" stopColor="#34d399" />
             </linearGradient>
           </defs>
           <g
@@ -323,7 +316,7 @@ export function TreeCanvas({
                       <path
                         d={path}
                         fill="none"
-                        stroke={isHighlighted ? '#ffd84d' : '#3f6983'}
+                        stroke={isHighlighted ? '#f59e0b' : '#8d9bb5'}
                         strokeWidth={isHighlighted ? 6 : 2}
                         className={isHighlighted ? 'highlighted-tree-edge' : ''}
                       />
@@ -333,13 +326,13 @@ export function TreeCanvas({
                         width="56"
                         height="22"
                         rx="11"
-                        fill="#20243d"
-                        stroke="#41506e"
+                        fill="#ffffff"
+                        stroke="#e3e9f4"
                       />
                       <text
                         x={labelX}
                         y={labelY + 3}
-                        fill="#c8d2e8"
+                        fill="#5f6f8d"
                         fontSize="12"
                         textAnchor="middle"
                       >
@@ -390,23 +383,16 @@ export function TreeCanvas({
                       isLeaf
                         ? isPass
                           ? 'url(#passNode)'
-                          : '#f05d68'
+                          : '#ef4444'
                         : 'url(#featureNode)'
                     }
-                    stroke={
-                      isHighlighted
-                        ? '#ffd84d'
-                        : isLeaf
-                          ? '#ffffff66'
-                          : '#55f5ff'
-                    }
+                    stroke={isHighlighted ? '#f59e0b' : '#ffffffcc'}
                     strokeWidth={isHighlighted ? 5 : 1.5}
-                    filter="url(#nodeGlow)"
                   />
                   <text
                     x="0"
                     y={isLeaf ? 5 : -4}
-                    fill={isLeaf ? '#08181a' : '#071b25'}
+                    fill="#ffffff"
                     fontSize="14"
                     fontWeight="700"
                     textAnchor="middle"
@@ -419,7 +405,7 @@ export function TreeCanvas({
                     <text
                       x="0"
                       y="16"
-                      fill="#15303a"
+                      fill="#eef2ff"
                       fontSize="11"
                       textAnchor="middle"
                     >

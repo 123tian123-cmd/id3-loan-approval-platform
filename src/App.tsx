@@ -1,8 +1,8 @@
 import {
   GraduationCap,
-  Landmark,
   Menu,
   ShieldCheck,
+  TreeDeciduous,
   X,
 } from 'lucide-react'
 import {
@@ -85,33 +85,24 @@ export default function App() {
     'id3-current-sample-v4',
     { ...SAMPLE_TEMPLATES.中等风险样本 },
   )
-  const [convertedRows, setConvertedRows] = useState<CategorizedLoanRow[]>(
-    () => {
-      const trained = window.localStorage.getItem(TRAINED_STORAGE_KEY) === 'true'
-      return trained ? categorizeRows(rows, mappings) : []
-    },
-  )
-  const [tree, setTree] = useState<TreeNode | null>(() => {
+  const [convertedRows, setConvertedRows] = useState<CategorizedLoanRow[]>([])
+  const [tree, setTree] = useState<TreeNode | null>(null)
+  const [metrics, setMetrics] = useState<TrainingMetrics | null>(null)
+
+  useEffect(() => {
     const trained = window.localStorage.getItem(TRAINED_STORAGE_KEY) === 'true'
-    if (!trained) return null
-    try {
-      const categorized = categorizeRows(rows, mappings)
-      return buildTree(categorized, constraints)
-    } catch {
-      return null
-    }
-  })
-  const [metrics, setMetrics] = useState<TrainingMetrics | null>(() => {
-    const trained = window.localStorage.getItem(TRAINED_STORAGE_KEY) === 'true'
-    if (!trained) return null
+    if (!trained) return
     try {
       const categorized = categorizeRows(rows, mappings)
       const initialTree = buildTree(categorized, constraints)
-      return treeMetrics(initialTree, categorized)
+      const initialMetrics = treeMetrics(initialTree, categorized)
+      setConvertedRows(categorized)
+      setTree(initialTree)
+      setMetrics(initialMetrics)
     } catch {
-      return null
+      // keep empty state
     }
-  })
+  }, [])
   const [training, setTraining] = useState(false)
   const [evaluationStale, setEvaluationStale] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -288,11 +279,10 @@ export default function App() {
         <div className="hero-orbit orbit-two" />
         <div className="hero-inner">
           <div className="brand-mark" aria-hidden="true">
-            <Landmark size={38} />
+            <TreeDeciduous size={38} />
           </div>
           <div className="hero-copy">
-            <span className="hero-kicker">MACHINE LEARNING LAB</span>
-            <h1>ID3决策树借贷审批平台</h1>
+            <h1>ID3决策树原理</h1>
             <p>基于信息增益的信贷风控分类实训平台</p>
           </div>
         </div>
@@ -375,13 +365,9 @@ export default function App() {
 
       <footer>
         <div>
-          <Landmark size={21} />
+          <TreeDeciduous size={21} />
           <span>ID3决策树借贷审批平台</span>
         </div>
-        <p>
-          教学演示平台 · 信息熵 · 信息增益 · 信贷风控 ·
-          默认训练数据随平台发布，导入和编辑仅保存在当前浏览器
-        </p>
       </footer>
 
       {toast && (

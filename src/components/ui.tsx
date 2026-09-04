@@ -4,7 +4,6 @@ import { Info, X } from 'lucide-react'
 export function Section({
   id,
   icon,
-  eyebrow,
   title,
   description,
   children,
@@ -12,7 +11,7 @@ export function Section({
 }: {
   id: string
   icon: ReactNode
-  eyebrow: string
+  eyebrow?: string
   title: string
   description?: string
   children: ReactNode
@@ -25,7 +24,6 @@ export function Section({
           {icon}
         </div>
         <div>
-          <span className="eyebrow">{eyebrow}</span>
           <h2>{title}</h2>
           {description && <p>{description}</p>}
         </div>
