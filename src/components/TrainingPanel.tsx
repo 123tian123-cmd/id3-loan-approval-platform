@@ -10,6 +10,7 @@ import {
   Upload,
 } from 'lucide-react'
 import {
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -726,6 +727,20 @@ export function TrainingPanel({
 }) {
   const [tab, setTab] = useState<TrainingTab>('data')
   const hasMappingError = mappingErrors(mappings).length > 0
+  const logRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const container = logRef.current
+    if (container) container.scrollTop = container.scrollHeight
+  }, [logs.length])
+
+  const logLineClass = (log: string) => {
+    if (log.startsWith('━━')) return 'log-layer'
+    if (log.startsWith('▸')) return 'log-node'
+    if (log.startsWith('✓')) return 'log-choice'
+    if (log.startsWith('　')) return 'log-detail'
+    return 'log-stage'
+  }
 
   return (
     <Section
@@ -795,6 +810,12 @@ export function TrainingPanel({
         </div>
       </div>
 
+      <TrainingResults
+        rows={rows}
+        convertedRows={convertedRows}
+        metrics={metrics}
+      />
+
       {(training || logs.length > 0) && (
         <div className="training-progress" aria-live="polite">
           <div className="progress-head">
@@ -807,9 +828,9 @@ export function TrainingPanel({
           <div className="progress-track">
             <i style={{ width: `${progress}%` }} />
           </div>
-          <div className="training-log">
+          <div className="training-log" ref={logRef}>
             {logs.map((log, index) => (
-              <p key={`${index}-${log}`}>
+              <p key={`${index}-${log}`} className={logLineClass(log)}>
                 <span>{String(index + 1).padStart(2, '0')}</span>
                 {log}
               </p>
@@ -817,12 +838,6 @@ export function TrainingPanel({
           </div>
         </div>
       )}
-
-      <TrainingResults
-        rows={rows}
-        convertedRows={convertedRows}
-        metrics={metrics}
-      />
     </Section>
   )
 }

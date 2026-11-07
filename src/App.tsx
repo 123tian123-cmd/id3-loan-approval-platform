@@ -27,6 +27,7 @@ import {
   SAMPLE_TEMPLATES,
 } from './data'
 import {
+  buildCalculationTrace,
   buildTree,
   categorizeRows,
   cloneMappings,
@@ -169,40 +170,27 @@ export default function App() {
       await delay(170)
     }
 
-    await stage(`读取并校验 ${categorized.length} 条信贷样本`, 10)
+    await stage(`读取并校验 ${categorized.length} 条信贷样本，完成数值映射`, 10)
     const draftTree = buildTree(categorized, constraints)
     const draftMetrics = treeMetrics(draftTree, categorized)
     await stage(
-      `计算数据集熵 H(D) = ${draftMetrics.entropy.toFixed(4)}`,
-      22,
+      `计算根节点数据集熵 H(D) = ${draftMetrics.entropy.toFixed(4)}，开始逐层选择最优划分特征`,
+      16,
     )
-    for (const gain of draftMetrics.gains) {
-      const weightedEntropy = gain.partitions
-        .map(
-          (partition) =>
-            `${partition.weight.toFixed(4)}×H(Dᵥ=${partition.entropy.toFixed(4)})`,
-        )
-        .join(' + ')
-      await stage(
-        `${FEATURE_META[gain.feature].name}：Gain(D,A) = ${gain.baseEntropy.toFixed(4)} - (${weightedEntropy}) = ${gain.gain.toFixed(4)}`,
-        22 +
-          Math.round(
-            ((draftMetrics.gains.indexOf(gain) + 1) /
-              draftMetrics.gains.length) *
-              42,
-          ),
+
+    const trace = buildCalculationTrace(draftTree)
+    const chunkSize = 4
+    for (let index = 0; index < trace.length; index += chunkSize) {
+      const chunk = trace.slice(index, index + chunkSize)
+      setLogs((current) => [...current, ...chunk])
+      setProgress(
+        16 + Math.round(((index + chunk.length) / trace.length) * 76),
       )
+      await delay(90)
     }
+
     await stage(
-      `增益比较完成：${FEATURE_META[draftMetrics.gains[0].feature].name}为根节点最优特征`,
-      72,
-    )
-    await stage(
-      `递归执行分层划分，生成 ${draftMetrics.depth} 层、${draftMetrics.leaves} 个叶子节点`,
-      88,
-    )
-    await stage(
-      `约束校验完成：最大深度 ${constraints.maxDepth}，最小增益 ${constraints.minGain}`,
+      `约束校验完成：最大深度 ${constraints.maxDepth}，最小增益 ${constraints.minGain}，共生成 ${draftMetrics.depth} 层、${draftMetrics.leaves} 个叶子节点`,
       96,
     )
     await stage(

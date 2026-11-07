@@ -411,6 +411,62 @@ export function treeMetrics(
   }
 }
 
+export function buildCalculationTrace(tree: TreeNode): string[] {
+  const lines: string[] = []
+  let currentDepth = -1
+  const queue: Array<{ node: TreeNode; remaining: FeatureKey[] }> = [
+    { node: tree, remaining: [...FEATURE_ORDER] },
+  ]
+
+  while (queue.length) {
+    const { node, remaining } = queue.shift()!
+    if (!node.feature) continue
+
+    if (node.depth !== currentDepth) {
+      currentDepth = node.depth
+      lines.push(`━━ 第 ${currentDepth} 层 ━━`)
+    }
+
+    const pass = node.samples.filter((row) => row.label === '通过').length
+    lines.push(
+      `▸ 节点${node.id.replace('node-', '#')}：${node.samples.length} 条样本（通过 ${pass} / 拒绝 ${node.samples.length - pass}），熵 H(D) = ${node.entropy.toFixed(4)}`,
+    )
+
+    const gains = allGains(node.samples, remaining)
+    for (const detail of gains) {
+      const weighted = detail.partitions
+        .map(
+          (partition) =>
+            `${partition.weight.toFixed(4)}×${partition.entropy.toFixed(4)}`,
+        )
+        .join(' + ')
+      lines.push(
+        `　${FEATURE_META[detail.feature].name}：Gain = ${detail.baseEntropy.toFixed(4)} − (${weighted}) = ${detail.gain.toFixed(4)}`,
+      )
+    }
+
+    lines.push(
+      `✓ 选择【${FEATURE_META[node.feature].name}】：信息增益最大 = ${node.gain.toFixed(4)}，生成 ${Object.keys(node.branches).length} 个分支`,
+    )
+
+    const nextRemaining = remaining.filter(
+      (feature) => feature !== node.feature,
+    )
+    for (const [value, child] of Object.entries(node.branches)) {
+      lines.push(
+        `　分支「${value}」：${child.samples.length} 条 → ${
+          child.feature
+            ? `继续划分（熵 ${child.entropy.toFixed(4)}）`
+            : `叶子「${child.label ?? child.majority}」（${child.reason}）`
+        }`,
+      )
+      queue.push({ node: child, remaining: nextRemaining })
+    }
+  }
+
+  return lines
+}
+
 export function trainingSnapshots(tree: TreeNode): TrainingSnapshot[] {
   const allNodes = flattenTree(tree)
   const maxDepth = Math.max(...allNodes.map((node) => node.depth))

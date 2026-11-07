@@ -3,6 +3,7 @@ import {
   CirclePause,
   CirclePlay,
   GitBranch,
+  Info,
   RotateCcw,
   SkipForward,
   Sparkles,
@@ -13,7 +14,42 @@ import { trainingSnapshots } from '../lib/id3'
 import type { TrainingSnapshot, TreeNode } from '../types'
 import { GainBarChart, PurityLineChart } from './Charts'
 import { TreeCanvas } from './TreeCanvas'
-import { Button, EmptyState, Metric, Section, TeachingTip } from './ui'
+import { Button, EmptyState, Metric, Modal, Section, TeachingTip } from './ui'
+
+const PANEL_INTROS: Record<string, { title: string; body: string[] }> = {
+  layerLog: {
+    title: '分层构建日志',
+    body: [
+      '该板块按层展示决策树的构建轨迹。上方时间轴的每个按钮代表树的一层，点击可跳转到对应层查看详情，已完成的层会以「✓」标记。',
+      '下方列表给出当前层每个节点的处理结果：「划分」表示该节点按信息增益最大的特征继续分裂，并标注所选特征、增益值与生成的分支数；「叶子」表示节点停止分裂，直接输出多数类别，并给出停止原因（样本纯净、达到最大深度、样本数不足或信息增益低于阈值）。',
+      '每个节点同时标注子集样本量与熵值，便于观察数据在逐层划分中的分布与纯度变化。',
+    ],
+  },
+  gainChart: {
+    title: '候选特征信息增益',
+    body: [
+      '该柱状图展示当前层所选节点上，每个候选特征的信息增益：Gain(D,A) = H(D) − Σ (|Dᵥ|/|D|) × H(Dᵥ)。',
+      '柱子越长，代表按该特征划分后样本不确定性下降越多；标注「最优」的柱体即本层实际选用的划分特征。',
+      '悬浮柱体可查看该特征各分支的样本数、分支熵、加权熵与最终增益等完整计算细节。',
+    ],
+  },
+  entropyChart: {
+    title: '节点平均熵变化',
+    body: [
+      '该折线图统计每一层所有节点的平均熵，刻画决策树生长过程中整体不确定性的下降轨迹。',
+      '熵越低，说明节点内样本类别越纯净；理想情况下曲线逐层下降并趋近于 0，即全部叶子节点纯净。',
+      '若某层之后曲线不再明显下降，通常意味着剩余特征已无法提供有效增益，继续分裂意义不大，可考虑调整约束参数。',
+    ],
+  },
+  iteration: {
+    title: '当前迭代状态',
+    body: [
+      '该板块汇总当前动画帧（层）的四项关键指标。',
+      '当前构建层数：树的生长进度，格式为「当前层 / 最大层」。当前子集平均熵：本层全部节点熵的均值，反映整体纯净度。',
+      '本层最大信息增益：本层被选中特征带来的最大不确定性削减量。剩余可分裂子集：本层之后仍可继续分裂的节点数量，降为 0 时整棵树构建完成。',
+    ],
+  },
+}
 
 export function VisualizationPanel({
   tree,
@@ -29,6 +65,9 @@ export function VisualizationPanel({
   const [activeIndex, setActiveIndex] = useState(0)
   const [playing, setPlaying] = useState(false)
   const [speed, setSpeed] = useState(1)
+  const [infoKey, setInfoKey] = useState<keyof typeof PANEL_INTROS | null>(
+    null,
+  )
 
   useEffect(() => {
     setActiveIndex(0)
@@ -148,7 +187,17 @@ export function VisualizationPanel({
           <div className="visual-grid">
             <article className="layer-log-card">
               <div className="subheading">
-                <span>分层构建日志</span>
+                <span>
+                  分层构建日志
+                  <button
+                    type="button"
+                    className="panel-info-btn"
+                    aria-label="查看分层构建日志介绍"
+                    onClick={() => setInfoKey('layerLog')}
+                  >
+                    <Info size={13} />
+                  </button>
+                </span>
                 <em>
                   {activeIndex + 1} / {snapshots.length}
                 </em>
@@ -197,7 +246,17 @@ export function VisualizationPanel({
 
             <article className="chart-card">
               <div className="subheading">
-                <span>候选特征信息增益</span>
+                <span>
+                  候选特征信息增益
+                  <button
+                    type="button"
+                    className="panel-info-btn"
+                    aria-label="查看候选特征信息增益介绍"
+                    onClick={() => setInfoKey('gainChart')}
+                  >
+                    <Info size={13} />
+                  </button>
+                </span>
                 <BarChart3 size={17} />
               </div>
               <GainBarChart gains={active.featureGains} compact />
@@ -208,7 +267,17 @@ export function VisualizationPanel({
 
             <article className="chart-card entropy-chart-card">
               <div className="subheading">
-                <span>节点平均熵变化</span>
+                <span>
+                  节点平均熵变化
+                  <button
+                    type="button"
+                    className="panel-info-btn"
+                    aria-label="查看节点平均熵变化介绍"
+                    onClick={() => setInfoKey('entropyChart')}
+                  >
+                    <Info size={13} />
+                  </button>
+                </span>
                 <em>不确定性下降轨迹</em>
               </div>
               <PurityLineChart
@@ -220,7 +289,17 @@ export function VisualizationPanel({
 
           <div className="iteration-panel">
             <div className="subheading">
-              <span>当前迭代状态</span>
+              <span>
+                当前迭代状态
+                <button
+                  type="button"
+                  className="panel-info-btn"
+                  aria-label="查看当前迭代状态介绍"
+                  onClick={() => setInfoKey('iteration')}
+                >
+                  <Info size={13} />
+                </button>
+              </span>
               <em>Layer {active.depth}</em>
             </div>
             <div className="metrics-grid">
@@ -248,6 +327,20 @@ export function VisualizationPanel({
           </div>
         </>
       )}
+
+      <Modal
+        open={infoKey !== null}
+        title={infoKey ? PANEL_INTROS[infoKey].title : ''}
+        onClose={() => setInfoKey(null)}
+      >
+        {infoKey && (
+          <div className="panel-intro">
+            {PANEL_INTROS[infoKey].body.map((text) => (
+              <p key={text}>{text}</p>
+            ))}
+          </div>
+        )}
+      </Modal>
     </Section>
   )
 }
